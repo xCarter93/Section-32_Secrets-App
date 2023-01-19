@@ -1,10 +1,11 @@
 //jshint esversion:6
 
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const data = require("/Users/patrickcarter/VisualStudioCodeProjects/HTML-CSS-JS/Complete 2022 Web Development Bootcamp/mongoPassword.json");
+const encrypt = require("mongoose-encryption");
 
 const app = express();
 app.use(express.static("public"));
@@ -17,12 +18,18 @@ app.use(
 
 mongoose.set("strictQuery", false);
 const db = "secretsDB";
-const mongoURL = `mongodb+srv://xcarter93:${data.password}@cluster0.jwhx2lt.mongodb.net/${db}?retryWrites=true&w=majority`;
+const mongoURL = `mongodb+srv://xcarter93:${process.env.DB_PASSWORD}@cluster0.jwhx2lt.mongodb.net/${db}?retryWrites=true&w=majority`;
 mongoose.connect(mongoURL);
 
 const userSchema = new mongoose.Schema({
 	email: String,
 	password: String,
+});
+
+userSchema.plugin(encrypt, {
+	secret: process.env.SECRET,
+	encryptedFields: ["password"],
+	excludeFromEncryption: ["email"],
 });
 
 const User = mongoose.model("User", userSchema);
@@ -55,20 +62,19 @@ app.post("/register", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-	User.findOne(
-		{ email: req.body.username, password: req.body.password },
-		(err, foundUser) => {
-			if (!err) {
-				if (foundUser) {
+	User.findOne({ email: req.body.username }, (err, foundUser) => {
+		if (!err) {
+			if (foundUser) {
+				if (req.body.password == foundUser.password) {
 					res.render("secrets");
-				} else {
-					console.log("User not found, please register.");
 				}
 			} else {
-				console.log(err);
+				console.log("User not found, please register.");
 			}
+		} else {
+			console.log(err);
 		}
-	);
+	});
 });
 
 app.listen(3000, () => {
